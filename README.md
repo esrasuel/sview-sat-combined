@@ -17,3 +17,77 @@ The code in this repository requires hdf5 files. There are three hdf5 files:
 Labels are different for the street-level dataset than satellite images. Street-level labels are saved in a CSV file. The rows of the CSV files correspond to the first index of the array stored in the street-level HDF5. 
 
 ### Example training and testing command lines
+#### Training bash script for merging street-level images into satellite data (prediction at the satellite level)
+```
+  #!/bin/bash
+
+LRATE=0.0001
+GPUNUM=2
+PRETRAINITER=10000 
+output=(denv dmeanincome dcrowd)
+outputs=(dep-liv-env-decile-london-lsoa mean-income-decile-london-lsoa decile-lsoa-occupancy-rating--1orless)
+for ((i=0;i<${#output[@]};i++)); 
+do 
+    for n in 1 2 3
+    do
+	echo running: ${output[i]}, ${outputs[i]}, $n
+	python ordinal_classification_10class.py \
+	       --mode 1 \
+	       --imgfile ../../../data/learning-ready-data/london_new_hc_images_imgnet.hdf5 \
+	       --labfile ../../../data/learning-ready-data/london_new_all_variables.csv \
+	       --satfile ../../../data/learning-ready-data/satellite_tiles_wsview_information.hdf5 \
+	       --satlabfile ../../../data/learning-ready-data/satellite_tiles_label_information.hdf5 \
+	       --satpatch 300 \
+	       --labelName ${output[i]} \
+	       --sviewLabelName ${outputs[i]} \
+	       --modelName pytorch-${output[i]}-pretrain${PRETRAINITER}-london_${n} \
+	       --part_file ../../../data/vmap-partitions/${output[i]}-london_${n}.sat.partitions \
+	       --sview_part_file ../../../data/vmap-partitions/${output[i]}-london_${n}.partitions \
+	       --validation_flag 1 \
+	       --city_name london \
+	       --batch_size 10 \
+	       --lrrate $LRATE \
+	       --num_epochs 500 \
+	       --gpu_num $GPUNUM \
+	       --pre_train_iter $PRETRAINITER \
+	       --finetune_flag
+    done
+done
+```
+#### Testing bash script for merging street-level images into satellite data (prediction at the satellite level)
+```
+#!/bin/bash
+
+LRATE=0.0001
+GPUNUM=0
+output=(denv dmeanincome dcrowd)
+PRETRAINITER=10000
+outputs=(dep-liv-env-decile-london-lsoa mean-income-decile-london-lsoa decile-lsoa-occupancy-rating--1orless)
+for ((i=0;i<${#output[@]};i++)); 
+do 
+	for n in 1 2 3
+	do
+		echo running: ${output[i]}, ${outputs[i]}, $n
+		python ordinal_classification_10class.py \
+			--mode 0 \
+			--imgfile ../../../data/learning-ready-data/london_new_hc_images_imgnet.hdf5 \
+			--labfile ../../../data/learning-ready-data/london_new_all_variables.csv \
+			--satfile ../../../data/learning-ready-data/satellite_tiles_wsview_information.hdf5 \
+			--satlabfile ../../../data/learning-ready-data/satellite_tiles_label_information.hdf5 \
+			--satpatch 300 \
+			--labelName ${output[i]} \
+			--sviewLabelName ${outputs[i]} \
+			--modelName pytorch-${output[i]}-pretrain${PRETRAINITER}-london_${n} \
+			--part_file ../../../data/vmap-partitions/${output[i]}-london_${n}.sat.partitions \
+			--sview_part_file ../../../data/vmap-partitions/${output[i]}-london_${n}.partitions \
+			--validation_flag 1 \
+			--city_name london \
+			--batch_size 10 \
+			--lrrate $LRATE \
+			--num_epochs 500 \
+			--gpu_num $GPUNUM \
+			--pre_train_iter ${PRETRAINITER} \
+			--finetune_flag
+	done
+done
+```
